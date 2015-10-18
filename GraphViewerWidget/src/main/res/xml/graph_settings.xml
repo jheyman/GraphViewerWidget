@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+  <PreferenceCategory android:title="Graph Size">
+    <com.gbbtbb.graphviewerwidget.EditTextIntegerPreference
+        android:key="com.gbbtbb.graphviewerwidget.(%d).GraphWidth"
+        android:numeric="integer"
+        android:inputType="number"
+        android:title="Width"
+        android:defaultValue="1000"
+        android:summary="Width of the graph" />
+    <com.gbbtbb.graphviewerwidget.EditTextIntegerPreference
+        android:key="com.gbbtbb.graphviewerwidget.(%d).GraphHeight"
+        android:numeric="integer"
+        android:inputType="number"
+        android:title="Height"
+        android:defaultValue="100"
+        android:summary="Height of the graph" />
+    <ListPreference android:key="com.gbbtbb.graphviewerwidget.(%d).NumHours"
+                    android:title="History Length"
+                    android:entries="@array/history_length_display"
+                    android:entryValues="@array/history_length_values" />
+  </PreferenceCategory>
+
+</PreferenceScreen>

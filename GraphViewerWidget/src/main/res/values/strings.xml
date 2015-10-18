@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="empty_view_text">rien...</string>
+    <string name="item_format_string">%1$s</string>
+    <string name="action_settings">Settings</string>
+    <string name="configure">MyconfigureText</string>
+    <string name="add_widget">MyAddWidgetText</string>
+    <string name="app_name">GraphViewerWidget</string>
+    <string name="header_text">Status</string>
+
+</resources>

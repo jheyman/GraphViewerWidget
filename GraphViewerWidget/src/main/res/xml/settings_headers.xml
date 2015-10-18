@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<preference-headers xmlns:android="http://schemas.android.com/apk/res/android">
+  <header android:fragment="com.gbbtbb.graphviewerwidget.SettingsActivity$GraphSettingsFragment"
+          android:icon="@drawable/ic_action_full_screen"
+          android:title="Graph Settings"
+          android:summary="Size and look of the graph widget." />
+
+  <header android:fragment="com.gbbtbb.graphviewerwidget.SettingsActivity$TempSettingsFragment"
+          android:icon="@drawable/ic_temp"
+          android:title="Temperature Graph"
+          android:summary="Settings for monitoring your phones temperature." />
+
+</preference-headers>
