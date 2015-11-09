@@ -10,17 +10,14 @@ import android.content.Intent;
 import android.database.ContentObserver;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
-import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Paint.Align;
-import android.graphics.Path;
 import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.support.annotation.Nullable;
 import android.text.TextPaint;
-import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.View;
 import android.widget.RemoteViews;
@@ -64,9 +61,7 @@ public class GraphViewerWidgetProvider extends AppWidgetProvider {
     private static final int HeaderHeight = 50;
     private static final int FooterHeight = 45;
 
-    public static final int NB_DUMMY_GRAPHS = 5;
     public static final int DEFAULT_WIDTH = 1000;
-    public static final int DEFAULT_HEIGHT = 150;
     public static final int NB_VERTICAL_MARKERS = 15;
 
     private static GraphViewerDataProviderObserver sDataObserver=null;
@@ -75,15 +70,15 @@ public class GraphViewerWidgetProvider extends AppWidgetProvider {
     private static Handler sWorkerQueue;
     private static boolean progressBarEnabled = false;
 
-    public DisplayMetrics mDisplayMetrics;
-
-    // Width and height of each graph, in pixels
+    // Width of graph in pixels
     public static int mGraphWidth;
-    public static int mGraphHeight;
+    public static int mHistoryLengthInHours;
 
     // beginning and end timestamps specifying the actual time range to be visualized
     public static long timestamp_start;
     public static long timestamp_end;
+
+    private String timeLastUpdated;
 
     private Settings mSettings;
 
@@ -179,37 +174,30 @@ public class GraphViewerWidgetProvider extends AppWidgetProvider {
         Bitmap bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(bmp);
 
-/*        Paint fillpaint = new Paint();
-        fillpaint.setColor(Color.WHITE);
-        fillpaint.setAlpha(50);
-        fillpaint.setStyle(Paint.Style.FILL);
-        canvas.drawPaint(fillpaint);*/
-
-
         Typeface myfont = Typeface.createFromAsset(ctx.getAssets(), "passing_notes.ttf");
 
         TextPaint textPaint = new TextPaint();
         textPaint.setTypeface(myfont);
         textPaint.setStyle(Paint.Style.FILL);
-        textPaint.setTextSize(40);
-        textPaint.setColor(Color.WHITE);
+        textPaint.setTextSize(ctx.getResources().getDimension(R.dimen.header_text_size));
+        textPaint.setColor(ctx.getResources().getColor(R.color.text_color));
+
         textPaint.setTextAlign(Align.LEFT);
         textPaint.setAntiAlias(true);
         textPaint.setSubpixelText(true);
 
-        //StaticLayout sl = new StaticLayout("Graph header", textPaint, canvas.getWidth(), Layout.Alignment.ALIGN_NORMAL, 1, 1, false);
-
         float textHeight = Utilities.getTextHeight(textPaint, "r");
-        // Rect bounds = new Rect();
-        //textPaint.getTextBounds("G", 0, 1, bounds);
-        canvas.drawText(ctx.getResources().getString(R.string.header_text), 10.0f, 0.5f*(height + textHeight), textPaint);
+        canvas.drawText(ctx.getResources().getString(R.string.header_text) + ": " + mHistoryLengthInHours + " heures", 10.0f, 0.5f * (height + textHeight), textPaint);
 
-       // canvas.save();
-        //canvas.translate(0, 15);
-        // canvas.translate(0, 0.5f*(canvas.getHeight() - bounds.height()));
-        //canvas.translate(0, 0.5f*(canvas.getHeight() - textHeight));
-        //sl.draw(canvas);
-        //canvas.restore();
+        TextPaint textPaintComments = new TextPaint();
+        textPaintComments.setStyle(Paint.Style.FILL);
+        textPaintComments.setTextSize(ctx.getResources().getDimension(R.dimen.header_comments_size));
+        textPaintComments.setColor(ctx.getResources().getColor(R.color.text_color));
+
+        String commentText = "(Dernière MAJ: " + timeLastUpdated + ")";
+        float textWidth = Utilities.getTextWidth(textPaint, commentText);
+
+        canvas.drawText(commentText , 0.5f*(width-textWidth), 0.5f * (height + textHeight), textPaintComments);
 
         return bmp;
     }
@@ -219,44 +207,21 @@ public class GraphViewerWidgetProvider extends AppWidgetProvider {
         Bitmap bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(bmp);
 
-        Utilities.fillCanvas(canvas, Color.BLACK);
-        /*
-        Paint fillpaint = new Paint();
-        fillpaint.setColor(Color.BLACK);
-        fillpaint.setStyle(Paint.Style.FILL);
-        canvas.drawPaint(fillpaint);*/
-
-        //Typeface myfont = Typeface.createFromAsset(ctx.getAssets(), "passing_notes.ttf");
+        Utilities.fillCanvas(canvas, ctx.getResources().getColor(R.color.background_color));
 
         TextPaint textPaint = new TextPaint();
-        //textPaint.setTypeface(myfont);
         textPaint.setStyle(Paint.Style.FILL);
         textPaint.setTextSize(12);
-        textPaint.setColor(Color.WHITE);
+        textPaint.setColor(ctx.getResources().getColor(R.color.text_color));
+
         textPaint.setTextAlign(Align.LEFT);
         textPaint.setAntiAlias(true);
         textPaint.setSubpixelText(true);
 
-
-        Paint paint = new Paint();
-        paint.setAntiAlias(true);
-        paint.setARGB(255, 100, 100, 100);
-        paint.setStrokeWidth(1.0f);
-        paint.setStyle(Paint.Style.STROKE);
-
-        Path path = new Path();
-
-        paint.setARGB(255, 100, 100, 100);
-
         String latestDatePrinted = "";
 
         for (int i=0; i<NB_VERTICAL_MARKERS; i++) {
-            float x = (0.5f+i)*width/NB_VERTICAL_MARKERS;
-
-            // Draw vertical marker on top half of the footer
-            path.moveTo(x, 0);
-            path.lineTo(x, 0.33f*height);
-            canvas.drawPath(path, paint);
+            float x = (1.0f+i)*width/(NB_VERTICAL_MARKERS+1);
 
             // On bottom half of the footer, under each marker, print corresponding date and time
             //Rect bounds = new Rect();
@@ -270,14 +235,14 @@ public class GraphViewerWidgetProvider extends AppWidgetProvider {
             String timetext = Utilities.getTimeFromTimeStamp(timestamp);
 
             textWidth = Utilities.getTextWidth(textPaint, timetext);
-            canvas.drawText(timetext, x - 0.5f*textWidth, (0.33f+0.5f*0.33f)*height + 0.5f*textHeight, textPaint);
+            canvas.drawText(timetext, x - 0.5f*textWidth, (0.25f)*height + 0.5f*textHeight, textPaint);
 
             // Compute and display date for this marker
             // But do not print the date on this marker if it is the same day as one of the previous markers
             String datetext = Utilities.getDateFromTimeStamp(timestamp);
             if (!datetext.equals(latestDatePrinted)) {
                 textWidth = Utilities.getTextWidth(textPaint, datetext);
-                canvas.drawText(datetext, x - 0.5f * textWidth, (0.66f + 0.5f*0.33f) * height + 0.5f * textHeight, textPaint);
+                canvas.drawText(datetext, x - 0.5f * textWidth, (0.75f) * height + 0.5f * textHeight, textPaint);
                 latestDatePrinted = datetext;
             }
         }
@@ -287,6 +252,8 @@ public class GraphViewerWidgetProvider extends AppWidgetProvider {
     @Override
     public void onUpdate(Context context, AppWidgetManager appWidgetManager, int[] appWidgetIds) {
         Log.i(GraphViewerWidgetProvider.TAG, "onUpdate called");
+
+        timeLastUpdated = Utilities.getCurrentTime();
 
         final ContentResolver r = context.getContentResolver();
         if (sDataObserver == null) {
@@ -304,14 +271,12 @@ public class GraphViewerWidgetProvider extends AppWidgetProvider {
 
             Settings.GraphSettings gs = mSettings.getGraphSettings(appWidgetIds[i]);
             mGraphWidth = gs.getGraphWidth();
-            mGraphHeight = gs.getGraphHeight();
+            mHistoryLengthInHours = gs.getHistoryLength();
 
             if (mGraphWidth <= 0) mGraphWidth = DEFAULT_WIDTH;
-            if (mGraphHeight <= 0) mGraphHeight = DEFAULT_HEIGHT;
 
-            // Format: "yyyy-MM-dd kk:mm:ss"
-            timestamp_start = Utilities.getTimeStampFromDateTime("2015-08-24 00:00:00");
-            timestamp_end = Utilities.getTimeStampFromDateTime("2015-08-30 23:30:00");
+            timestamp_end = Utilities.getCurrentTimeStamp();
+            timestamp_start = timestamp_end - mHistoryLengthInHours*60*60*1000;
 
             // Specify the service to provide data for the collection widget.  Note that we need to
             // embed the appWidgetId via the data otherwise it will be ignored.
@@ -325,15 +290,9 @@ public class GraphViewerWidgetProvider extends AppWidgetProvider {
             // view of the collection view.
             rv.setEmptyView(R.id.graph_list, R.id.empty_view);
 
-            //rv.setImageViewBitmap(R.id.textGraphTitle, drawTextOnList(context, "GraphXXX", R.drawable.paperpad_top));
             rv.setImageViewBitmap(R.id.textGraphTitle, drawCommonHeader(context, mGraphWidth, HeaderHeight));
 
-            //rv.setImageViewBitmap(R.id.footer, drawTextOnList(context, "", R.drawable.paperpad_bottom));
             rv.setImageViewBitmap(R.id.footer, drawCommonFooter(context, mGraphWidth, FooterHeight));
-
-            //float pixelDensity = context.getResources().getDisplayMetrics().density;
-            //Log.i(GraphViewerWidgetProvider.TAG, "pixel density=" + Float.toString(pixelDensity));
-
 
             final Intent onClickIntent = new Intent(context, GraphViewerWidgetProvider.class);
             onClickIntent.setAction(GraphViewerWidgetProvider.CLICK_ACTION);

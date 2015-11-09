@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="background_color">#FFFFFF</color>
+    <color name="text_color">#000000</color>
+    <color name="lineplot_color">#0000FF</color>
+    <color name="bargraph_color">#0066FF</color>
+    <color name="axis_color">#000000</color>
+    <color name="divider_color">#000000</color>
+    <color name="graph_label_text_background">#808080</color>
+    <color name="graph_label_text_color">#FFFFFF</color>
+</resources>

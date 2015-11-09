@@ -34,21 +34,29 @@ public class Utilities {
         return timestamp;
     }
 
-    public static String getDateTimeFromTimeStamp(long timestamp) {
-        Date date = new Date(timestamp);
-        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd' 'HH:mm:ss");
+    public static long getCurrentTimeStamp() {
+
+        long timestamp=0;
+        // compute numerical timestamp value corresponding to datetime string
+        Date date = new Date();
+        return date.getTime();
+    }
+
+    public static String getCurrentTime() {
+        Date date = new Date();
+        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("HH:mm");
         return simpleDateFormat.format(date);
     }
 
-    public static String getDateFromTimeStamp(long timestamp) {
+     public static String getDateFromTimeStamp(long timestamp) {
         Date date = new Date(timestamp);
-        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd");
+        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("dd/MM");
         return simpleDateFormat.format(date);
     }
 
     public static String getTimeFromTimeStamp(long timestamp) {
         Date date = new Date(timestamp);
-        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("HH:mm:ss");
+        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("HH:mm");
         return simpleDateFormat.format(date);
     }
 

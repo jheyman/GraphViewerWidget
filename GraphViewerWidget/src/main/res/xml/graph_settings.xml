@@ -8,13 +8,6 @@
         android:title="Width"
         android:defaultValue="1000"
         android:summary="Width of the graph" />
-    <com.gbbtbb.graphviewerwidget.EditTextIntegerPreference
-        android:key="com.gbbtbb.graphviewerwidget.(%d).GraphHeight"
-        android:numeric="integer"
-        android:inputType="number"
-        android:title="Height"
-        android:defaultValue="100"
-        android:summary="Height of the graph" />
     <ListPreference android:key="com.gbbtbb.graphviewerwidget.(%d).NumHours"
                     android:title="History Length"
                     android:entries="@array/history_length_display"

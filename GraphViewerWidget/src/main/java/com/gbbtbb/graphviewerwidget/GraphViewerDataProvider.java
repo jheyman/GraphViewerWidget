@@ -43,7 +43,8 @@ public class GraphViewerDataProvider extends ContentProvider {
 
         final MatrixCursor c_data = new MatrixCursor(new String[]{Columns.DATAID, Columns.DATETIME, Columns.VALUE});
 
-        String result = httpRequest("http://192.168.0.13:8081/graphlist.php");
+        Log.i(GraphViewerWidgetProvider.TAG, "Performing HTTP request with delay="+ selectionArgs[0]+ " hours");
+        String result = httpRequest("http://192.168.0.13:8081/graphlist.php?delay=-"+selectionArgs[0]+" hour");
 
         // Parse the received JSON data
         try {
@@ -105,7 +106,7 @@ public class GraphViewerDataProvider extends ContentProvider {
             Log.e(GraphViewerWidgetProvider.TAG, "httpRequest: Error in http connection "+e.toString());
         }
 
-        Log.i(GraphViewerWidgetProvider.TAG, "httpRequest: received "+ result);
+        Log.i(GraphViewerWidgetProvider.TAG, "httpRequest completed, received "+ result.length() + " bytes");
 
         return result;
     }

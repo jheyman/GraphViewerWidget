@@ -49,7 +49,7 @@ public class Settings {
             gs.mPrefix = prefix;
             gs.mGraphWidth = pref.getInt(prefix + "GraphWidth", 600);
             gs.mGraphHeight = pref.getInt(prefix + "GraphHeight", 100);
-            gs.mNumHours = pref.getInt(prefix + "NumHours", 24);
+            gs.mNumHours = Integer.parseInt(pref.getString(prefix + "NumHours", Integer.toString(24)));
             return gs;
         }
 
@@ -61,7 +61,7 @@ public class Settings {
             pref.edit()
                     .putInt(prefix+"GraphWidth", mGraphWidth)
                     .putInt(prefix+"GraphHeight", mGraphHeight)
-                    .putInt(prefix+"NumHours", mNumHours)
+                    .putString(prefix + "NumHours", Integer.toString(mNumHours))
                     .apply();
         }
     }

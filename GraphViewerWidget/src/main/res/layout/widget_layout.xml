@@ -18,24 +18,24 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="#ffffff"
-    android:paddingTop="3px"
-    android:paddingLeft="3px"
-    android:paddingRight="3px"
-    android:paddingBottom="3px">
+    android:background="#ff0000"
+    android:paddingTop="0px"
+    android:paddingLeft="0px"
+    android:paddingRight="0px"
+    android:paddingBottom="0px">
 
     <FrameLayout
         android:id="@+id/LinearLayout1"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:background="#000000">
+        android:background="#FFFFFF">
 
         <ImageView
             android:id="@+id/textGraphTitle"
             android:layout_width="wrap_content"
             android:layout_height="match_parent"
-            android:background="#000000"
+            android:background="#FFFFFF"
             android:layout_gravity="left"/>
 
         <LinearLayout
@@ -44,7 +44,7 @@
             android:layout_height="match_parent"
             android:layout_gravity="right"
             android:gravity="center|right"
-            android:background="#000000"
+            android:background="#FFFFFF"
             android:paddingTop="0dp"
             android:orientation="horizontal" >
 
@@ -54,9 +54,9 @@
                 android:layout_height="wrap_content"
                 android:paddingTop="0dp"
                 android:paddingBottom="0dp"
-                android:paddingLeft="5dp"
+                android:paddingLeft="0dp"
                 android:paddingRight="0dp"
-                android:background="#000000"
+                android:background="#FFFFFF"
                 android:src="@drawable/reload_button"
                 />
 
@@ -64,6 +64,10 @@
                 android:id="@+id/loadingProgress"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:paddingTop="0dp"
+                android:paddingBottom="0dp"
+                android:paddingLeft="0dp"
+                android:paddingRight="20dp"
                 android:visibility="gone" >
             </ProgressBar>
 
@@ -73,23 +77,30 @@
                 android:layout_height="wrap_content"
                 android:paddingTop="0dp"
                 android:paddingBottom="0dp"
-                android:paddingLeft="5dp"
+                android:paddingLeft="0dp"
                 android:paddingRight="0dp"
-                android:background="#000000"
+                android:background="#FFFFFF"
                 android:src="@drawable/settings_icon"
                 />
         </LinearLayout>
 
     </FrameLayout>
 
+    <FrameLayout
+        android:id="@+id/LinearLayout_separator"
+        android:layout_width="match_parent"
+        android:layout_height="1px"
+        android:orientation="horizontal"
+        android:background="#000000">
+    </FrameLayout>
 
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
         android:layout_weight="1"
-        android:background="#ff0000"
-        android:scaleType="fitXY">
+        android:background="#FFFF00"
+        >
 <!--        android:paddingTop="5dip"
         android:paddingLeft="5dip"
         android:paddingRight="5dip"
@@ -99,9 +110,9 @@
             android:id="@+id/graph_list"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:divider="#ffffff"
-            android:dividerHeight="1px"
-            android:background="#000000"/>
+            android:divider="@color/divider_color"
+            android:dividerHeight="0px"
+            android:background="#FFFFFF"/>
 
         <TextView
             android:id="@+id/empty_view"
@@ -109,11 +120,12 @@
             android:layout_height="match_parent"
             android:gravity="center_vertical"
             android:text="@string/empty_view_text"
+            android:textAlignment="center"
             android:textColor="#000000"
             android:paddingLeft="50dp"
             android:paddingTop="1dp"
             android:textSize="16sp"
-            android:background="#000000"
+            android:background="#FFFFFF"
             android:visibility="gone"/>
 
     </FrameLayout>
@@ -123,7 +135,7 @@
         android:id="@+id/LayoutBottom"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="#000000"
+        android:background="#FFFFFF"
         android:orientation="horizontal" >
 <!--        android:paddingTop="5dip"
         android:paddingLeft="5dip"

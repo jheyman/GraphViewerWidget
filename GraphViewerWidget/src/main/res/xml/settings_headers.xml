@@ -3,11 +3,6 @@
   <header android:fragment="com.gbbtbb.graphviewerwidget.SettingsActivity$GraphSettingsFragment"
           android:icon="@drawable/ic_action_full_screen"
           android:title="Graph Settings"
-          android:summary="Size and look of the graph widget." />
-
-  <header android:fragment="com.gbbtbb.graphviewerwidget.SettingsActivity$TempSettingsFragment"
-          android:icon="@drawable/ic_temp"
-          android:title="Temperature Graph"
-          android:summary="Settings for monitoring your phones temperature." />
+          android:summary="various graph widget settings" />
 
 </preference-headers>
