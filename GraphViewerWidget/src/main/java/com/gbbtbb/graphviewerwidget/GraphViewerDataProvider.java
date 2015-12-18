@@ -47,25 +47,27 @@ public class GraphViewerDataProvider extends ContentProvider {
         String result = httpRequest("http://192.168.0.13:8081/graphlist.php?delay=-"+selectionArgs[0]+" hour");
 
         // Parse the received JSON data
-        try {
-            JSONObject jdata = new JSONObject(result);
+        if (!result.equals("")) {
+            try {
+                JSONObject jdata = new JSONObject(result);
 
-            // First get general params
-            String dataRefreshDateTime = jdata.getString(DATAREFRESH_DATETIME);
-            c_data.addRow(new Object[]{DATAREFRESH_DATETIME, "<none>", dataRefreshDateTime});
+                // First get general params
+                String dataRefreshDateTime = jdata.getString(DATAREFRESH_DATETIME);
+                c_data.addRow(new Object[]{DATAREFRESH_DATETIME, "<none>", dataRefreshDateTime});
 
-            // Then get actual data points
-            JSONArray jArray = jdata.getJSONArray(DATAITEMS);
-            for (int i = 0; i < jArray.length(); i++) {
-                JSONObject jobj = jArray.getJSONObject(i);
-                String dataId = jobj.getString(Columns.DATAID);
-                String timestamp = jobj.getString(Columns.DATETIME);
-                double value = jobj.getDouble(Columns.VALUE);
-                c_data.addRow(new Object[]{dataId, timestamp, value});
+                // Then get actual data points
+                JSONArray jArray = jdata.getJSONArray(DATAITEMS);
+                for (int i = 0; i < jArray.length(); i++) {
+                    JSONObject jobj = jArray.getJSONObject(i);
+                    String dataId = jobj.getString(Columns.DATAID);
+                    String timestamp = jobj.getString(Columns.DATETIME);
+                    double value = jobj.getDouble(Columns.VALUE);
+                    c_data.addRow(new Object[]{dataId, timestamp, value});
+                }
+
+            } catch (JSONException e) {
+                Log.e(GraphViewerWidgetProvider.TAG, "Error parsing data " + e.toString());
             }
-
-        } catch (JSONException e) {
-            Log.e(GraphViewerWidgetProvider.TAG, "Error parsing data " + e.toString());
         }
 
         return c_data;

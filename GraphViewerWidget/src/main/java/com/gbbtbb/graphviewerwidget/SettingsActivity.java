@@ -159,9 +159,6 @@ public class SettingsActivity extends PreferenceActivity
             EditTextIntegerPreference intpref = (EditTextIntegerPreference) findPreference(getPrefix()+"GraphWidth");
             intpref.setSummary(String.format(Locale.ENGLISH, "%d px", intpref.getInteger()));
 
-            intpref = (EditTextIntegerPreference) findPreference(getPrefix()+"GraphHeight");
-            intpref.setSummary(String.format(Locale.ENGLISH, "%d px", intpref.getInteger()));
-
             ListPreference listpref = (ListPreference) findPreference(getPrefix()+"NumHours");
             listpref.setSummary(listpref.getEntry());
         }
