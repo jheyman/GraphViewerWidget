@@ -3,7 +3,7 @@
     <color name="background_color">#FFFFFF</color>
     <color name="text_color">#000000</color>
     <color name="lineplot_color">#00FF00</color>
-    <color name="lineplot_special_color">#FF6666</color>
+    <color name="lineplot_special_color">#0099FF</color>
     <color name="bargraph_color">#0066FF</color>
     <color name="axis_color">#000000</color>
     <color name="divider_color">#000000</color>

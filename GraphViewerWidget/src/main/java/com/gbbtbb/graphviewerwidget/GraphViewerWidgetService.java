@@ -117,6 +117,8 @@ class StackRemoteViewsFactory implements RemoteViewsService.RemoteViewsFactory {
 
         }
 
+        Log.i(GraphViewerWidgetProvider.TAG, "Cursor contains " + Integer.toString(mDataCursor.getCount()) + " elements");
+
         mDataCursor.moveToFirst();
 
         // Among all entries retrieved for the requested time period, sort them into separate lists by dataId
