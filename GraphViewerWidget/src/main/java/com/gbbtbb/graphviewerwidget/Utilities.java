@@ -54,6 +54,12 @@ public class Utilities {
         return simpleDateFormat.format(date);
     }
 
+    public static String getCurrentDateTime() {
+        Date date = new Date();
+        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        return simpleDateFormat.format(date);
+    }
+
      public static String getDateFromTimeStamp(long timestamp) {
         Date date = new Date(timestamp);
         SimpleDateFormat simpleDateFormat = new SimpleDateFormat("dd/MM");

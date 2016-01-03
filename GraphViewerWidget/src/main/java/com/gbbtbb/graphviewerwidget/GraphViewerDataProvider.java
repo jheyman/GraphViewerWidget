@@ -15,8 +15,14 @@ import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.URLEncoder;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.TimeZone;
 
 public class GraphViewerDataProvider extends ContentProvider {
 
@@ -43,31 +49,80 @@ public class GraphViewerDataProvider extends ContentProvider {
 
         final MatrixCursor c_data = new MatrixCursor(new String[]{Columns.DATAID, Columns.DATETIME, Columns.VALUE});
 
-        Log.i(GraphViewerWidgetProvider.TAG, "Performing HTTP request with delay="+ selectionArgs[0]+ " hours");
-        String result = httpRequest("http://192.168.0.13:8081/graphlist.php?delay=-"+selectionArgs[0]+" hour");
+        String charset = "UTF-8";
+        String param_db = "homelog";
+        int hours = Integer.parseInt(selectionArgs[0]);
+        String param_period = String.format("SELECT * FROM homelogdata WHERE time > now() - %dh", hours);
+        String query = "";
+
+        try {
+            query = String.format("http://192.168.0.13:8086/query?db=%s&q=%s",
+                    URLEncoder.encode(param_db, charset),
+                    URLEncoder.encode(param_period, charset));
+        }
+        catch (UnsupportedEncodingException e) {
+            Log.e(GraphViewerWidgetProvider.TAG, "Error encoding URL params: " + e.toString());
+        }
+
+        String result = httpRequest(query);
 
         // Parse the received JSON data
         if (!result.equals("")) {
+            Log.i(GraphViewerWidgetProvider.TAG, "Parsing received JSON data");
             try {
                 JSONObject jdata = new JSONObject(result);
 
-                // First get general params
-                String dataRefreshDateTime = jdata.getString(DATAREFRESH_DATETIME);
+                String dataRefreshDateTime = Utilities.getCurrentDateTime();
                 c_data.addRow(new Object[]{DATAREFRESH_DATETIME, "<none>", dataRefreshDateTime});
 
                 // Then get actual data points
-                JSONArray jArray = jdata.getJSONArray(DATAITEMS);
-                for (int i = 0; i < jArray.length(); i++) {
-                    JSONObject jobj = jArray.getJSONObject(i);
-                    String dataId = jobj.getString(Columns.DATAID);
-                    String timestamp = jobj.getString(Columns.DATETIME);
-                    double value = jobj.getDouble(Columns.VALUE);
-                    c_data.addRow(new Object[]{dataId, timestamp, value});
+                JSONObject result_field = (JSONObject)jdata.getJSONArray("results").get(0);
+                JSONArray series_array = (JSONArray)result_field.getJSONArray("series");
+                JSONObject serie = (JSONObject) series_array.get(0);
+                JSONArray series_values = (JSONArray) serie.getJSONArray("values");
+
+                for (int i = 0; i < series_values.length(); i++) {
+
+                    JSONArray myArray = (JSONArray) series_values.get(i);
+
+                    // Datetime of the points is stored in first field
+                    // InfluxDB datetime are returned in format YYYY-MM-DDTHH:mm:ss.SSSSSSSSSZ, as per RFC3339
+                    // Transform it into the "yyyy-MM-dd HH:mm:ss" format, for two reasons:
+                    // - the rest of the code/utilities expects it like this and I'm too lazy to modify everything
+                    // - I had weird issues on Android 4.0.3 and earlier in timezone conversion with the RFC3339 format
+                    String datetime = myArray.getString(0).substring(0,19).replace("T", " ");
+
+                    // Also, influxDB datatime is stored/returned in UTC: convert it to local timezone here and let the rest of the code deal only with this local time.
+                    SimpleDateFormat sdf  = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+
+                    try {
+                        sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
+                        Date date = sdf.parse(datetime);
+
+                        SimpleDateFormat pstFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+                        pstFormat.setTimeZone(TimeZone.getTimeZone("Europe/Paris"));
+
+                        datetime = pstFormat.format(date);
+                    }
+                    catch (ParseException p) {
+                        Log.i(GraphViewerWidgetProvider.TAG, "ERROR in parsing date string: " + datetime);
+                    }
+
+                    // Graph Id is stored in second field of each point
+                    String dataId = myArray.getString(1);
+
+                    // Value is stored in third field of each point
+                    double value = myArray.getDouble(2);
+
+                    //Log.i(GraphViewerWidgetProvider.TAG, "POINT: datetime= " + datetime + ", dataId=" + dataId + ", value=" + Double.toString(value));
+
+                    c_data.addRow(new Object[]{dataId, datetime, value});
                 }
 
             } catch (JSONException e) {
-                Log.e(GraphViewerWidgetProvider.TAG, "Error parsing data " + e.toString());
+                Log.e(GraphViewerWidgetProvider.TAG, "Error parsing data: " + e.toString());
             }
+            Log.i(GraphViewerWidgetProvider.TAG, "JSON data parsing completed");
         }
 
         return c_data;
@@ -92,6 +147,8 @@ public class GraphViewerDataProvider extends ContentProvider {
 
     private String httpRequest(String url/*, ArrayList<NameValuePair> nameValuePairs*/) {
         String result = "";
+
+        Log.i(GraphViewerWidgetProvider.TAG, "Performing HTTP request " + url);
 
         try {
 

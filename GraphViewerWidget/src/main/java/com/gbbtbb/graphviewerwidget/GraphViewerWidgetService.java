@@ -55,7 +55,7 @@ class StackRemoteViewsFactory implements RemoteViewsService.RemoteViewsFactory {
     private final String DATA_ID_INTERGRAPH_BLANK="INTERBLANK";
     private final String DATA_ID_FINALFILLER="FINALFILLER";
 
-    private final int INTERGRAPH_BLANK_HEIGHT = 10;
+    private final int INTERGRAPH_BLANK_HEIGHT = 6;
     private final int FINALFILLER_HEIGHT = 500;
     private final float LINEPLOT_DOTSIZE = 5.0f;
 
@@ -216,7 +216,7 @@ class StackRemoteViewsFactory implements RemoteViewsService.RemoteViewsFactory {
                     if (!inSpecialZone) {
                         inSpecialZone = true;
                         specialZoneTimestampStart = temp.timestamp;
-                        Log.i(GraphViewerWidgetProvider.TAG,"START timezone: " + Long.toString(specialZoneTimestampStart) );
+                        //Log.i(GraphViewerWidgetProvider.TAG,"START of special timezone: " + Long.toString(specialZoneTimestampStart) );
                     }
                     cumulatedSpecial += temp.value;
                 } else {
@@ -224,10 +224,10 @@ class StackRemoteViewsFactory implements RemoteViewsService.RemoteViewsFactory {
                     if (inSpecialZone) {
                         inSpecialZone = false;
                         specialZoneTimestampStop = temp.timestamp;
-                        Log.i(GraphViewerWidgetProvider.TAG,"STOP timezone: " + Long.toString(specialZoneTimestampStop) );
+                        //Log.i(GraphViewerWidgetProvider.TAG,"STOP special timezone: " + Long.toString(specialZoneTimestampStop) );
                         long specialZoneMiddle = (specialZoneTimestampStop+specialZoneTimestampStart)/2;
 
-                        Log.i(GraphViewerWidgetProvider.TAG,"MIDDLE timezone: " + Long.toString(specialZoneMiddle) );
+                        //Log.i(GraphViewerWidgetProvider.TAG,"MIDDLE of special timezone: " + Long.toString(specialZoneMiddle) );
                         // commit special cumulated value and the middle pôint of the special area
                         // but don't track zero or almost zero cumulated values
                         if (cumulatedSpecial > 0.1f) {
@@ -273,13 +273,11 @@ class StackRemoteViewsFactory implements RemoteViewsService.RemoteViewsFactory {
         // Do not set a click handler on dummy items that are there only to make the list look good when empty
         // TODO : adapt to not put click intent on empty graph slots
 /*
-        if (datetime.compareTo("")!=0) {
             final Intent fillInIntent = new Intent();
             final Bundle extras = new Bundle();
             extras.putString(GraphViewerWidgetProvider.EXTRA_ITEM_ID, datetime);
             fillInIntent.putExtras(extras);
             rv.setOnClickFillInIntent(R.id.widget_item, fillInIntent);
-        }
 */
         return rv;
     }
@@ -293,7 +291,10 @@ class StackRemoteViewsFactory implements RemoteViewsService.RemoteViewsFactory {
             case "cuisinepi_ping":
             case "intercompi1_ping":
             case "intercompi2_ping":
-                height = 20;
+            case "nas_ping":
+            case "garagepi_ping":
+            case "alarme_ping":
+                height = 16;
                 break;
             case "waterMeter":
                 height = 150;
@@ -316,6 +317,9 @@ class StackRemoteViewsFactory implements RemoteViewsService.RemoteViewsFactory {
             case "cuisinepi_ping":
             case "intercompi1_ping":
             case "intercompi2_ping":
+            case "nas_ping":
+            case "garagepi_ping":
+            case "alarme_ping":
                 unit = "";
                 break;
             case "waterMeter":
@@ -339,6 +343,9 @@ class StackRemoteViewsFactory implements RemoteViewsService.RemoteViewsFactory {
             case "cuisinepi_ping":
             case "intercompi1_ping":
             case "intercompi2_ping":
+            case "nas_ping":
+            case "garagepi_ping":
+            case "alarme_ping":
                 gt = GraphType.binarystatus;
                 break;
             case "waterMeter":
@@ -375,6 +382,15 @@ class StackRemoteViewsFactory implements RemoteViewsService.RemoteViewsFactory {
             case 10:
                 dataId = "intercompi2_ping";
                 break;
+            case 12:
+                dataId = "nas_ping";
+                break;
+            case 14:
+                dataId = "garagepi_ping";
+                break;
+            case 16:
+                dataId = "alarme_ping";
+                break;
 
             case 1:
             case 3:
@@ -382,6 +398,9 @@ class StackRemoteViewsFactory implements RemoteViewsService.RemoteViewsFactory {
             case 7:
             case 9:
             case 11:
+            case 13:
+            case 15:
+            case 17:
                 dataId = DATA_ID_INTERGRAPH_BLANK;
                 break;
             default:
@@ -443,6 +462,11 @@ class StackRemoteViewsFactory implements RemoteViewsService.RemoteViewsFactory {
             long timerange = GraphViewerWidgetProvider.timestamp_end - GraphViewerWidgetProvider.timestamp_start;
 
             if (dataPoints != null) {
+
+                // each bar corresponds to a sample range of 5 minutes
+                float bar_width = width * (300000) / timerange;
+
+
                 for (DataPoint temp : dataPoints) {
 
                     // For each datapoint in the list, generate a graph point at X coordinate proportional to timestamp over selected graph view range,
@@ -452,10 +476,10 @@ class StackRemoteViewsFactory implements RemoteViewsService.RemoteViewsFactory {
 
                     int colour;
                     if (temp.special) {
-                        colour = mContext.getResources().getColor(R.color.lineplot_special_color);
+                        colour = mContext.getResources().getColor(R.color.bargraph_special_color);
                     }
                     else
-                        colour = mContext.getResources().getColor(R.color.lineplot_color);
+                        colour = mContext.getResources().getColor(R.color.bargraph_normal_color);
 
                     graphPoints.add(new GraphPoint(x, y, temp.value, colour));
                 }
@@ -467,7 +491,7 @@ class StackRemoteViewsFactory implements RemoteViewsService.RemoteViewsFactory {
                     float x = width * (temp.timestamp - GraphViewerWidgetProvider.timestamp_start) / timerange;
                     float y = gp.height * temp.value / gp.scale;
 
-                    specialgraphPoints.add(new GraphPoint(x, y, temp.value, mContext.getResources().getColor(R.color.lineplot_special_color)));
+                    specialgraphPoints.add(new GraphPoint(x, y, temp.value, mContext.getResources().getColor(R.color.bargraph_special_color)));
                 }
 
 
@@ -484,10 +508,10 @@ class StackRemoteViewsFactory implements RemoteViewsService.RemoteViewsFactory {
                 // draw the graph points themselves
                 switch (gp.type) {
                     case bargraph:
-                        drawBarGraph(graphPoints, cumulatedValues, gp.unit, canvas, width, gp.height);
+                        drawBarGraph(graphPoints, cumulatedValues, gp.unit, bar_width, canvas, width, gp.height);
                         break;
                     case bargraph_and_special:
-                        drawBarGraph(graphPoints, cumulatedValues, gp.unit, canvas, width, gp.height);
+                        drawBarGraph(graphPoints, cumulatedValues, gp.unit, bar_width, canvas, width, gp.height);
                         drawSpecialValues(specialgraphPoints, canvas, width, gp.height);
                         break;
                     case lineplot:
@@ -570,21 +594,9 @@ class StackRemoteViewsFactory implements RemoteViewsService.RemoteViewsFactory {
             canvas.drawPath(path, paint);
     }
 
-    private void drawBarGraph(List<GraphPoint> points, float[] cumulatedValues, String unit, Canvas canvas, int width, int height) {
+    private void drawBarGraph(List<GraphPoint> points, float[] cumulatedValues, String unit, float bar_width, Canvas canvas, int width, int height) {
 
-        int barcolour = mContext.getResources().getColor(R.color.bargraph_color);
-
-        float bar_width;
-        if (points.size()>1) {
-
-            GraphPoint first = points.get(0);
-            GraphPoint last = points.get(points.size() - 1);
-
-            bar_width = (last.x - first.x) / (points.size() - 1);
-        } else {
-            // Arbitrarily set the unique bar to 10% of total width
-            bar_width = 0.1f*width;
-        }
+        int barcolour = mContext.getResources().getColor(R.color.bargraph_stats_text_color);
 
         for (GraphPoint pt : points) {
 
@@ -595,7 +607,8 @@ class StackRemoteViewsFactory implements RemoteViewsService.RemoteViewsFactory {
             barpaint.setStyle(Paint.Style.FILL);
 
             // Draw text background, and then text itself
-            canvas.drawRect(pt.x - 0.5f * bar_width, height, pt.x + 0.5f * bar_width, height - pt.y, barpaint);
+            //canvas.drawRect(pt.x - 0.5f * bar_width, height, pt.x + 0.5f * bar_width, height - pt.y, barpaint);
+            canvas.drawRect(pt.x - bar_width, height, pt.x, height - pt.y, barpaint);
         }
 
         // Then draw text statistics for each time sub-region
