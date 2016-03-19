@@ -216,18 +216,23 @@ class StackRemoteViewsFactory implements RemoteViewsService.RemoteViewsFactory {
                     if (!inSpecialZone) {
                         inSpecialZone = true;
                         specialZoneTimestampStart = temp.timestamp;
-                        //Log.i(GraphViewerWidgetProvider.TAG,"START of special timezone: " + Long.toString(specialZoneTimestampStart) );
+                        //Log.i(GraphViewerWidgetProvider.TAG,"START of special timezone: " + Utilities.getDateTimeFromTimeStamp(specialZoneTimestampStart) );
+                    }
+                    else
+                    {
+                        // until further notice, this could well be the last point of this special zone
+                        specialZoneTimestampStop = temp.timestamp;
                     }
                     cumulatedSpecial += temp.value;
                 } else {
                     // Is this the end point of the current special zone ?
                     if (inSpecialZone) {
                         inSpecialZone = false;
-                        specialZoneTimestampStop = temp.timestamp;
-                        //Log.i(GraphViewerWidgetProvider.TAG,"STOP special timezone: " + Long.toString(specialZoneTimestampStop) );
+                        // Use the timestamp of the PREVIOUS point (i.e. last point that was actually in the special zone) as the end time of the special zone
+                        //Log.i(GraphViewerWidgetProvider.TAG,"STOP special timezone: " + Utilities.getDateTimeFromTimeStamp(specialZoneTimestampStop) );
                         long specialZoneMiddle = (specialZoneTimestampStop+specialZoneTimestampStart)/2;
 
-                        //Log.i(GraphViewerWidgetProvider.TAG,"MIDDLE of special timezone: " + Long.toString(specialZoneMiddle) );
+                        //Log.i(GraphViewerWidgetProvider.TAG,"MIDDLE of special timezone: " + Utilities.getDateTimeFromTimeStamp(specialZoneMiddle));
                         // commit special cumulated value and the middle pôint of the special area
                         // but don't track zero or almost zero cumulated values
                         if (cumulatedSpecial > 0.1f) {
