@@ -224,6 +224,22 @@ class StackRemoteViewsFactory implements RemoteViewsService.RemoteViewsFactory {
                         specialZoneTimestampStop = temp.timestamp;
                     }
                     cumulatedSpecial += temp.value;
+
+                    // Special case: if we are in the middle of a special zone BUT this is the last point to be displayed, force-end the special zone so that
+                    // cumulated value gets displayed.
+                    if (temp.timestamp == dataPoints.get(dataPoints.size()-1).timestamp) {
+                        inSpecialZone = false;
+                        // Use the timestamp of the PREVIOUS point (i.e. last point that was actually in the special zone) as the end time of the special zone
+                        //Log.i(GraphViewerWidgetProvider.TAG,"STOP special timezone: " + Utilities.getDateTimeFromTimeStamp(specialZoneTimestampStop) );
+                        long specialZoneMiddle = (specialZoneTimestampStop + specialZoneTimestampStart) / 2;
+
+                        //Log.i(GraphViewerWidgetProvider.TAG,"MIDDLE of special timezone: " + Utilities.getDateTimeFromTimeStamp(specialZoneMiddle));
+                        // commit special cumulated value and the middle pôint of the special area
+                        // but don't track zero or almost zero cumulated values
+                        if (cumulatedSpecial > 0.1f) {
+                            specialPoints.add(new DataPoint(Utilities.getDateTimeFromTimeStamp(specialZoneMiddle), cumulatedSpecial, false));
+                        }
+                    }
                 } else {
                     // Is this the end point of the current special zone ?
                     if (inSpecialZone) {
