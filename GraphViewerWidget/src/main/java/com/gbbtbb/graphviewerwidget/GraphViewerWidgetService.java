@@ -436,6 +436,9 @@ class StackRemoteViewsFactory implements RemoteViewsService.RemoteViewsFactory {
 
         int width =  (int)(GraphViewerWidgetProvider.mGraphWidth);
 
+        if (width==0)
+                width = GraphViewerWidgetProvider.DEFAULT_WIDTH;
+
         // Figure out what data to plot in this graph
         String dataId = getDataIdForPosition(position);
 
@@ -505,14 +508,16 @@ class StackRemoteViewsFactory implements RemoteViewsService.RemoteViewsFactory {
                     graphPoints.add(new GraphPoint(x, y, temp.value, colour));
                 }
 
-                for (DataPoint temp : specialValues) {
+                if (dataPoints != null) {
+                    for (DataPoint temp : specialValues) {
 
-                    // For each datapoint in the list, generate a graph point at X coordinate proportional to timestamp over selected graph view range,
-                    // and Y coordinate corresponding to data value scaled to graph height
-                    float x = width * (temp.timestamp - GraphViewerWidgetProvider.timestamp_start) / timerange;
-                    float y = gp.height * temp.value / gp.scale;
+                        // For each datapoint in the list, generate a graph point at X coordinate proportional to timestamp over selected graph view range,
+                        // and Y coordinate corresponding to data value scaled to graph height
+                        float x = width * (temp.timestamp - GraphViewerWidgetProvider.timestamp_start) / timerange;
+                        float y = gp.height * temp.value / gp.scale;
 
-                    specialgraphPoints.add(new GraphPoint(x, y, temp.value, mContext.getResources().getColor(R.color.bargraph_special_color)));
+                        specialgraphPoints.add(new GraphPoint(x, y, temp.value, mContext.getResources().getColor(R.color.bargraph_special_color)));
+                    }
                 }
 
 

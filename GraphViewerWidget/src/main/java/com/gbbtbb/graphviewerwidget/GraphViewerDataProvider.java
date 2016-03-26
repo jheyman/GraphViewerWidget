@@ -165,7 +165,13 @@ public class GraphViewerDataProvider extends ContentProvider {
             Log.e(GraphViewerWidgetProvider.TAG, "httpRequest: Error in http connection "+e.toString());
         }
 
-        Log.i(GraphViewerWidgetProvider.TAG, "httpRequest completed, received "+ result.length() + " bytes");
+        String data ;
+        if (result.length() <= 32)
+            data = result;
+        else
+            data = "[long data....]";
+
+        Log.i(GraphViewerWidgetProvider.TAG, "httpRequest completed, received "+ result.length() + " bytes: " + data);
 
         return result;
     }
