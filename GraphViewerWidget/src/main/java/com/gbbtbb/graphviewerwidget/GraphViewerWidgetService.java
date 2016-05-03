@@ -42,12 +42,6 @@ public class GraphViewerWidgetService extends IntentService {
     private HashMap<String, GraphParameters> mGraphParams;
 
     private String mDataRefreshDateTime;
-    private final String DATA_ID_NONE="NONE";
-    private final String DATA_ID_INTERGRAPH_BLANK="INTERBLANK";
-    private final String DATA_ID_FINALFILLER="FINALFILLER";
-
-    private final int INTERGRAPH_BLANK_HEIGHT = 6;
-    private final int FINALFILLER_HEIGHT = 500;
     private final float LINEPLOT_DOTSIZE = 5.0f;
 
     public GraphViewerWidgetService() {
@@ -710,7 +704,6 @@ public class GraphViewerWidgetService extends IntentService {
         mDataCursor = GraphViewerDataProvider.query(GraphViewerDataProvider.CONTENT_URI_DATAPOINTS, null, null,args, null);
         parseCursor();
     }
-
 
 }
 
