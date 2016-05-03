@@ -18,7 +18,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="#ff0000"
+    android:background="#308000"
     android:paddingTop="0px"
     android:paddingLeft="0px"
     android:paddingRight="0px"
@@ -29,19 +29,20 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:background="#FFFFFF">
+        android:background="#FF0000">
 
         <ImageView
             android:id="@+id/textGraphTitle"
-            android:layout_width="wrap_content"
-            android:layout_height="match_parent"
+            android:layout_width="fill_parent"
+            android:layout_height="64px"
             android:background="#FFFFFF"
+            android:scaleType="fitXY"
             android:layout_gravity="left"/>
 
         <LinearLayout
             android:id="@+id/LinearLayoutButtons"
             android:layout_width="wrap_content"
-            android:layout_height="match_parent"
+            android:layout_height="wrap_content"
             android:layout_gravity="right"
             android:gravity="center|right"
             android:background="#FFFFFF"
@@ -96,47 +97,24 @@
 
     <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:layout_weight="1"
-        android:background="#FFFF00"
-        >
-<!--        android:paddingTop="5dip"
-        android:paddingLeft="5dip"
-        android:paddingRight="5dip"
-        android:paddingBottom="5dip">-->
+        android:layout_height="0dp"
+        android:layout_weight="20"
+        android:orientation="vertical"
+        android:background="#000000">
 
-        <ListView
-            android:id="@+id/graph_list"
+        <ImageView
+            android:id="@+id/GraphBody"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:divider="@color/divider_color"
-            android:dividerHeight="0px"
-            android:background="#FFFFFF"/>
-
-        <TextView
-            android:id="@+id/empty_view"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:gravity="center_vertical"
-            android:text="@string/empty_view_text"
-            android:textAlignment="center"
-            android:textColor="#000000"
-            android:paddingLeft="50dp"
-            android:paddingTop="1dp"
-            android:textSize="16sp"
-            android:background="#FFFFFF"
-            android:visibility="gone"/>
-
+            android:background="#FF5500"
+            />
     </FrameLayout>
-
 
     <FrameLayout
         android:id="@+id/LayoutBottom"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="#FFFFFF"
-        android:orientation="horizontal" >
+        android:layout_height="50dp"
+        android:background="#FF0000">
 <!--        android:paddingTop="5dip"
         android:paddingLeft="5dip"
         android:paddingRight="5dip"
@@ -145,7 +123,8 @@
             android:id="@+id/footer"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:scaleType="fitXY"/>
+            android:scaleType="fitXY"
+            android:background="#00FF00"/>
     </FrameLayout>
 
 

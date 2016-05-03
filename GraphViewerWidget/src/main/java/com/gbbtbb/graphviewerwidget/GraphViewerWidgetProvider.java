@@ -4,14 +4,13 @@ import android.app.PendingIntent;
 import android.appwidget.AppWidgetManager;
 import android.appwidget.AppWidgetProvider;
 import android.content.ComponentName;
-import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
-import android.database.ContentObserver;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Paint.Align;
+import android.graphics.Rect;
 import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Handler;
@@ -22,29 +21,6 @@ import android.util.Log;
 import android.view.View;
 import android.widget.RemoteViews;
 
-/**
- * Our data observer just notifies an update for all widgets when it detects a change.
- */
-class GraphViewerDataProviderObserver extends ContentObserver {
-    private AppWidgetManager mAppWidgetManager;
-    private ComponentName mComponentName;
-
-    GraphViewerDataProviderObserver(AppWidgetManager mgr, ComponentName cn, Handler h) {
-        super(h);
-        mAppWidgetManager = mgr;
-        mComponentName = cn;
-    }
-
-    @Override
-    public void onChange(boolean selfChange) {
-        // The data has changed, so notify the widget that the collection view needs to be updated.
-        // In response, the factory's onDataSetChanged() will be called which will requery the
-        // cursor for the new data.
-        Log.i(GraphViewerWidgetProvider.TAG, "GraphViewerDataProviderObserver:onChange");
-        mAppWidgetManager.notifyAppWidgetViewDataChanged(
-                mAppWidgetManager.getAppWidgetIds(mComponentName), R.id.graph_list);
-    }
-}
 
 /**
  * The widget's AppWidgetProvider.
@@ -54,17 +30,18 @@ public class GraphViewerWidgetProvider extends AppWidgetProvider {
 
     public static final String CLICK_ACTION = "com.gbbtbb.graphviewerviewerwidget.CLICK";
     public static final String RELOAD_ACTION = "com.gbbtbb.graphviewerviewerwidget.RELOAD_LIST";
-    public static final String RELOAD_ACTION_DONE = "com.gbbtbb.graphviewerviewerwidget.RELOAD_LIST_DONE";
     public static final String EXTRA_ITEM_ID = "com.gbbtbb.graphviewerviewerwidget.item";
     public static final String CUSTOM_REFRESH_ACTION = "com.gbbtbb.graphviewerwidget.UpdateAction";
-
-    private static final int HeaderHeight = 50;
-    private static final int FooterHeight = 45;
+    public static final String GRAPHMEASURE_ACTION = "com.gbbtbb.graphviewerviewerwidget.GRAPHMEASURE_ACTION";
+    public static final String HEADERMEASURE_ACTION = "com.gbbtbb.graphviewerviewerwidget.HEADERMEASURE_ACTION";
+    public static final String FOOTERMEASURE_ACTION = "com.gbbtbb.graphviewerviewerwidget.FOOTERMEASURE_ACTION";
 
     public static final int DEFAULT_WIDTH = 1000;
+    public static final int DEFAULT_HEIGHT = 1000;
+    public static final int DEFAULT_HEADERHEIGHT = 50;
+    public static final int DEFAULT_HEADERWIDTH = 200;
+    public static final int DEFAULT_FOOTERHEIGHT = 50;
     public static final int NB_VERTICAL_MARKERS = 15;
-
-    private static GraphViewerDataProviderObserver sDataObserver=null;
 
     private static HandlerThread sWorkerThread;
     private static Handler sWorkerQueue;
@@ -72,6 +49,11 @@ public class GraphViewerWidgetProvider extends AppWidgetProvider {
 
     // Width of graph in pixels
     public static int mGraphWidth;
+    public static int mGraphHeight;
+    public static int mHeaderHeight;
+    public static int mHeaderWidth;
+    public static int mFooterHeight;
+
     public static int mHistoryLengthInHours;
 
     // beginning and end timestamps specifying the actual time range to be visualized
@@ -90,10 +72,6 @@ public class GraphViewerWidgetProvider extends AppWidgetProvider {
     }
 
     public GraphViewerWidgetProvider() {
-        // Start the worker threaD
-        sWorkerThread = new HandlerThread("GraphViewerWidgetProvider-worker");
-        sWorkerThread.start();
-        sWorkerQueue = new Handler(sWorkerThread.getLooper());
     }
 
     @Override
@@ -105,20 +83,12 @@ public class GraphViewerWidgetProvider extends AppWidgetProvider {
     @Override
     public void onEnabled(Context context) {
         Log.i(GraphViewerWidgetProvider.TAG, "onEnabled");
-
-        // Register for external updates to the data to trigger an update of the widget.  When using
-        // content providers, the data is often updated via a background service, or in response to
-        // user interaction in the main app.  To ensure that the widget always reflects the current
-        // state of the data, we must listen for changes and update ourselves accordingly.
-        final ContentResolver r = context.getContentResolver();
-        if (sDataObserver == null) {
-            final AppWidgetManager mgr = AppWidgetManager.getInstance(context);
-            final ComponentName cn = new ComponentName(context, GraphViewerWidgetProvider.class);
-            sDataObserver = new GraphViewerDataProviderObserver(mgr, cn, sWorkerQueue);
-            r.registerContentObserver(GraphViewerDataProvider.CONTENT_URI_DATAPOINTS, true, sDataObserver);
-            Log.i(GraphViewerWidgetProvider.TAG, "onEnabled: Registered data observer");
-        }
-    }
+        mGraphWidth = DEFAULT_WIDTH;
+        mGraphHeight = DEFAULT_HEIGHT;
+        mHeaderHeight = DEFAULT_HEADERHEIGHT;
+        mHeaderWidth = DEFAULT_HEADERWIDTH;
+        mFooterHeight = DEFAULT_FOOTERHEIGHT;
+     }
 
     @Override
     public void onReceive(Context ctx, Intent intent) {
@@ -134,6 +104,14 @@ public class GraphViewerWidgetProvider extends AppWidgetProvider {
 
         } else if (action.equals(RELOAD_ACTION) || action.equals(AppWidgetManager.ACTION_APPWIDGET_UPDATE) || action.equals(CUSTOM_REFRESH_ACTION)) {
 
+            progressBarEnabled = true;
+
+            AppWidgetManager widgetManager = AppWidgetManager.getInstance(ctx);
+            ComponentName widgetComponent = new ComponentName(ctx, GraphViewerWidgetProvider.class);
+            int[] widgetIds = widgetManager.getAppWidgetIds(widgetComponent);
+            onUpdate(ctx, widgetManager, widgetIds);
+
+            /*
             final Context context = ctx;
             sWorkerQueue.removeMessages(0);
             sWorkerQueue.post(new Runnable() {
@@ -149,26 +127,41 @@ public class GraphViewerWidgetProvider extends AppWidgetProvider {
                     Log.i(GraphViewerWidgetProvider.TAG, "onReceive: notified appwidget to refresh");
                 }
             });
-        }
-        else if (action.equals(RELOAD_ACTION_DONE)) {
+            */
+        } else if (action.equals(GRAPHMEASURE_ACTION)) {
+            Log.i(GraphViewerWidgetProvider.TAG, "GRAPHMEASURE_ACTION" );
 
-            Log.i(GraphViewerWidgetProvider.TAG, "processing RELOAD_ACTION_DONE...");
-            final Context context = ctx;
-            setLoadingInProgress(context, false);
+            Rect r = intent.getSourceBounds();
+
+            if (r != null) {
+                mGraphWidth = r.right - r.left;
+                mGraphHeight = r.bottom - r.top;
+                Log.i(GraphViewerWidgetProvider.TAG, "GRAPH WIDTH and HEIGHT auto-adjusted to (" + Integer.toString(mGraphWidth)+ ", " + Integer.toString(mGraphHeight)+")");
+            }
+        } else if (action.equals(HEADERMEASURE_ACTION)) {
+            Log.i(GraphViewerWidgetProvider.TAG, "HEADERMEASURE_ACTION" );
+
+            Rect r = intent.getSourceBounds();
+
+            if (r != null) {
+                mHeaderWidth = r.right - r.left;
+                mHeaderHeight = r.bottom - r.top;
+                Log.i(GraphViewerWidgetProvider.TAG, "HEADER HEIGHT auto-adjusted to (" + Integer.toString(mHeaderHeight)+ ")");
+            }
+        } else if (action.equals(FOOTERMEASURE_ACTION)) {
+            Log.i(GraphViewerWidgetProvider.TAG, "FOOTERMEASURE_ACTION" );
+
+            Rect r = intent.getSourceBounds();
+
+            if (r != null) {
+                mFooterHeight = r.bottom - r.top;
+                Log.i(GraphViewerWidgetProvider.TAG, "FOOTER HEIGHT auto-adjusted to (" + Integer.toString(mFooterHeight)+ ")");
+            }
         }
 
         super.onReceive(ctx, intent);
     }
 
-    private void setLoadingInProgress(Context context, boolean state) {
-
-        AppWidgetManager widgetManager = AppWidgetManager.getInstance(context);
-        ComponentName widgetComponent = new ComponentName(context, GraphViewerWidgetProvider.class);
-        int[] widgetIds = widgetManager.getAppWidgetIds(widgetComponent);
-
-        progressBarEnabled = state;
-        onUpdate(context, widgetManager, widgetIds);
-    }
 
     private Bitmap drawCommonHeader(Context ctx, int width, int height) {
         Bitmap bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
@@ -195,14 +188,14 @@ public class GraphViewerWidgetProvider extends AppWidgetProvider {
         textPaintComments.setColor(ctx.getResources().getColor(R.color.text_color));
 
         String commentText = "(Dernière MAJ: " + timeLastUpdated + ")";
-        float textWidth = Utilities.getTextWidth(textPaint, commentText);
-
-        canvas.drawText(commentText , 0.5f*(width-textWidth), 0.5f * (height + textHeight), textPaintComments);
+        canvas.drawText(commentText , 0.5f*width, 0.5f * (height + textHeight), textPaintComments);
 
         return bmp;
     }
 
     private Bitmap drawCommonFooter(Context ctx, int width, int height) {
+
+        Log.i(GraphViewerWidgetProvider.TAG, "drawCommonFooter");
 
         Bitmap bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(bmp);
@@ -255,51 +248,34 @@ public class GraphViewerWidgetProvider extends AppWidgetProvider {
 
         timeLastUpdated = Utilities.getCurrentTime();
 
-        final ContentResolver r = context.getContentResolver();
-        if (sDataObserver == null) {
-            final AppWidgetManager mgr = AppWidgetManager.getInstance(context);
-            final ComponentName cn = new ComponentName(context, GraphViewerWidgetProvider.class);
-            sDataObserver = new GraphViewerDataProviderObserver(mgr, cn, sWorkerQueue);
-            r.registerContentObserver(GraphViewerDataProvider.CONTENT_URI_DATAPOINTS, true, sDataObserver);
-            Log.i(GraphViewerWidgetProvider.TAG, "onUpdate: Registered data observer");
-        }
-
         // Update each of the widgets with the remote adapter
         for (int i = 0; i < appWidgetIds.length; ++i) {
 
             Log.i(GraphViewerWidgetProvider.TAG, "onUpdate: recreating RemoteViews for widgetId " + Integer.toString(i));
 
             Settings.GraphSettings gs = mSettings.getGraphSettings(appWidgetIds[i]);
-            mGraphWidth = gs.getGraphWidth();
+
             mHistoryLengthInHours = gs.getHistoryLength();
 
             if (mGraphWidth <= 0) mGraphWidth = DEFAULT_WIDTH;
+            if (mGraphHeight <= 0) mGraphHeight = DEFAULT_HEIGHT;
+            if (mHeaderHeight <= 0) mHeaderHeight = DEFAULT_HEADERHEIGHT;
+            if (mHeaderWidth <= 0) mHeaderWidth = DEFAULT_HEADERWIDTH;
+            if (mFooterHeight <= 0) mFooterHeight = DEFAULT_FOOTERHEIGHT;
 
             timestamp_end = Utilities.getCurrentTimeStamp();
             timestamp_start = timestamp_end - mHistoryLengthInHours*60*60*1000;
 
-            // Specify the service to provide data for the collection widget.  Note that we need to
-            // embed the appWidgetId via the data otherwise it will be ignored.
-            final Intent intent = new Intent(context, GraphViewerWidgetService.class);
-            intent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetIds[i]);
-            intent.setData(Uri.parse(intent.toUri(Intent.URI_INTENT_SCHEME)));
             final RemoteViews rv = new RemoteViews(context.getPackageName(), R.layout.widget_layout);
-            rv.setRemoteAdapter(R.id.graph_list, intent);
-
-            // Set the empty view to be displayed if the collection is empty.  It must be a sibling
-            // view of the collection view.
-            rv.setEmptyView(R.id.graph_list, R.id.empty_view);
-
-            rv.setImageViewBitmap(R.id.textGraphTitle, drawCommonHeader(context, mGraphWidth, HeaderHeight));
-
-            rv.setImageViewBitmap(R.id.footer, drawCommonFooter(context, mGraphWidth, FooterHeight));
+            rv.setImageViewBitmap(R.id.textGraphTitle, drawCommonHeader(context, mHeaderWidth, mHeaderHeight));
+            rv.setImageViewBitmap(R.id.footer, drawCommonFooter(context, mGraphWidth, mFooterHeight));
 
             final Intent onClickIntent = new Intent(context, GraphViewerWidgetProvider.class);
             onClickIntent.setAction(GraphViewerWidgetProvider.CLICK_ACTION);
             onClickIntent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetIds[i]);
             onClickIntent.setData(Uri.parse(onClickIntent.toUri(Intent.URI_INTENT_SCHEME)));
             final PendingIntent onClickPendingIntent = PendingIntent.getBroadcast(context, 0, onClickIntent, PendingIntent.FLAG_UPDATE_CURRENT);
-            rv.setPendingIntentTemplate(R.id.graph_list, onClickPendingIntent);
+            rv.setPendingIntentTemplate(R.id.GraphBody, onClickPendingIntent);
 
             // Bind the click intent for the refresh button on the widget
             final Intent reloadIntent = new Intent(context, GraphViewerWidgetProvider.class);
@@ -320,10 +296,52 @@ public class GraphViewerWidgetProvider extends AppWidgetProvider {
             rv.setViewVisibility(R.id.reloadList, progressBarEnabled ? View.GONE : View.VISIBLE);
             rv.setViewVisibility(R.id.loadingProgress, progressBarEnabled ? View.VISIBLE : View.GONE);
 
+            // Register a callback so that when clicking on the graph, a message is broadcasted back to this provider, so that its actual
+            // dimensions on screen can be measured, and the rendering height and width be updated accordingly.
+            final Intent graphIntent = new Intent(context, GraphViewerWidgetProvider.class);
+            graphIntent.setAction(GraphViewerWidgetProvider.GRAPHMEASURE_ACTION);
+            final PendingIntent graphPendingIntent = PendingIntent.getBroadcast(context, 0, graphIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+            rv.setOnClickPendingIntent(R.id.GraphBody, graphPendingIntent);
+
+            // and the same for footer measurement...
+            final Intent headerIntent = new Intent(context, GraphViewerWidgetProvider.class);
+            headerIntent.setAction(GraphViewerWidgetProvider.HEADERMEASURE_ACTION);
+            final PendingIntent headerPendingIntent = PendingIntent.getBroadcast(context, 0, headerIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+            rv.setOnClickPendingIntent(R.id.textGraphTitle, headerPendingIntent);
+
+            // and the same for footer measurement...
+            final Intent footerIntent = new Intent(context, GraphViewerWidgetProvider.class);
+            footerIntent.setAction(GraphViewerWidgetProvider.FOOTERMEASURE_ACTION);
+            final PendingIntent footerPendingIntent = PendingIntent.getBroadcast(context, 0, footerIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+            rv.setOnClickPendingIntent(R.id.footer, footerPendingIntent);
+
             // Update the widget with this newly built RemoveViews
             appWidgetManager.updateAppWidget(appWidgetIds[i], rv);
         }
+
+        // Get all ids
+        ComponentName thisWidget = new ComponentName(context, GraphViewerWidgetProvider.class);
+
+        // Build the intent to call the service
+        Intent intent = new Intent(context.getApplicationContext(), GraphViewerWidgetService.class);
+        intent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, appWidgetIds);
+
+        // Update the widgets via the service
+        context.startService(intent);
+
+        Log.i(GraphViewerWidgetProvider.TAG, "onUpdate: background service started");
+
+
+
+
+
+
+        // TODO pas necessaire ?
         super.onUpdate(context, appWidgetManager, appWidgetIds);
+
+
+
+
     }
 
 

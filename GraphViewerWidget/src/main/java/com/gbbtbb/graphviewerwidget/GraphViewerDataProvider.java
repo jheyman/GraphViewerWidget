@@ -1,7 +1,5 @@
 package com.gbbtbb.graphviewerwidget;
 
-import android.content.ContentProvider;
-import android.content.ContentValues;
 import android.database.Cursor;
 import android.database.MatrixCursor;
 import android.net.Uri;
@@ -24,7 +22,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.TimeZone;
 
-public class GraphViewerDataProvider extends ContentProvider {
+public class GraphViewerDataProvider {
 
     public static final Uri CONTENT_URI_DATAPOINTS = Uri.parse("content://com.gbbtbb.graphviewerwidget.provider.datapoints");
 
@@ -37,13 +35,7 @@ public class GraphViewerDataProvider extends ContentProvider {
         public static final String VALUE = "value";
     }
 
-    @Override
-    public boolean onCreate() {
-        return true;
-    }
-
-    @Override
-    public synchronized Cursor query(Uri uri, String[] projection, String selection,
+    public static Cursor query(Uri uri, String[] projection, String selection,
                                      String[] selectionArgs, String sortOrder) {
         assert (uri.getPathSegments().isEmpty());
 
@@ -128,24 +120,7 @@ public class GraphViewerDataProvider extends ContentProvider {
         return c_data;
     }
 
-    @Override
-    public Uri insert(Uri uri, ContentValues values) {
-        // not implemented / nothing to insert.
-        return null;
-    }
-
-    @Override
-    public int delete(Uri uri, String selection, String[] selectionArgs) {
-        // not implemented / nothing to insert.
-        return 0;
-    }
-
-    @Override
-    public String getType(Uri uri) {
-        return "vnd.android.cursor.dir/com.gbbtbb.graphlistitems";
-    }
-
-    private String httpRequest(String url/*, ArrayList<NameValuePair> nameValuePairs*/) {
+    private static String httpRequest(String url/*, ArrayList<NameValuePair> nameValuePairs*/) {
         String result = "";
 
         Log.i(GraphViewerWidgetProvider.TAG, "Performing HTTP request " + url);
@@ -176,7 +151,7 @@ public class GraphViewerDataProvider extends ContentProvider {
         return result;
     }
 
-    private String readStream(InputStream is) {
+    private static String readStream(InputStream is) {
         try {
             ByteArrayOutputStream bo = new ByteArrayOutputStream();
             int i = is.read();
@@ -190,16 +165,5 @@ public class GraphViewerDataProvider extends ContentProvider {
         }
     }
 
-    @Override
-    public synchronized int update(Uri uri, ContentValues values, String selection,
-                                   String[] selectionArgs) {
-        assert(uri.getPathSegments().size() == 1);
-        assert(uri.getPathSegments().size() == 1);
-
-        // not implemented right now.
-
-        getContext().getContentResolver().notifyChange(uri, null);
-        return 1;
-    }
 
 }

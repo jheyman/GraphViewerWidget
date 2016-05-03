@@ -1,8 +1,8 @@
 package com.gbbtbb.graphviewerwidget;
 
-import android.app.PendingIntent;
-import android.app.PendingIntent.CanceledException;
+import android.app.IntentService;
 import android.appwidget.AppWidgetManager;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
@@ -15,8 +15,8 @@ import android.graphics.Paint;
 import android.graphics.Path;
 import android.text.TextPaint;
 import android.util.Log;
+import android.view.View;
 import android.widget.RemoteViews;
-import android.widget.RemoteViewsService;
 
 import com.gbbtbb.graphviewerwidget.GraphViewerDataProvider.Columns;
 
@@ -32,17 +32,8 @@ import java.util.Locale;
 /**
  * This is the service that provides the factory to be bound to the collection service.
  */
-public class GraphViewerWidgetService extends RemoteViewsService {
-    @Override
-    public RemoteViewsFactory onGetViewFactory(Intent intent) {
-        return new StackRemoteViewsFactory(this.getApplicationContext(), intent);
-    }
-}
+public class GraphViewerWidgetService extends IntentService {
 
-/**
- * This is the factory that will provide data to the collection widget.
- */
-class StackRemoteViewsFactory implements RemoteViewsService.RemoteViewsFactory {
     private Context mContext;
     private Cursor mDataCursor;
     private HashMap<String, ArrayList<DataPoint>> mDataPoints;
@@ -59,35 +50,115 @@ class StackRemoteViewsFactory implements RemoteViewsService.RemoteViewsFactory {
     private final int FINALFILLER_HEIGHT = 500;
     private final float LINEPLOT_DOTSIZE = 5.0f;
 
-    public StackRemoteViewsFactory(Context context, Intent intent) {
-        mContext = context;
+    public GraphViewerWidgetService() {
+        super(GraphViewerWidgetService.class.getName());
+
+    }
+
+    public void init() {
+        mContext = this;
         mDataPoints = new HashMap();
         mCumulatedValues = new HashMap();
         mSpecialValues = new HashMap();
         mGraphParams = new HashMap();
-        intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID);
-    }
-
-    public void onCreate() {
         // Initialize the list with some empty items, to make the list look good
         final MatrixCursor c = new MatrixCursor(new String[]{ Columns.DATAID, Columns.DATETIME, Columns.VALUE });
         mDataCursor = c;
     }
 
-    public void onDestroy() {
+    public void cleanUp() {
         if (mDataCursor != null) {
             mDataCursor.close();
         }
     }
 
-    public int getCount() {
-        // - The number of different KEYS in the mDataPoints is the number of different graphs to be displayed.
-        // - Add the nb of blank graphs inserted after each actual graph
-        // - Add a final filler/empty graph at the bottom in any case such that the list looks good even when partially empty
-        if (mDataPoints != null)
-            return (mDataPoints.size() + mDataPoints.size() + 1);
-        else
-            return 1;
+    @Override
+    protected void onHandleIntent(Intent intent) {
+        Log.i(GraphViewerWidgetProvider.TAG, "onHandleIntent");
+
+        init();
+
+        getFreshData();
+
+        RemoteViews rv = new RemoteViews(this.getPackageName(),R.layout.widget_layout);
+
+        int width = GraphViewerWidgetProvider.mGraphWidth;
+        int height = GraphViewerWidgetProvider.mGraphHeight;
+
+        Log.i(GraphViewerWidgetProvider.TAG, "onHandleIntent: width=" + Integer.toString(width) + ", height=" + Integer.toString(height));
+
+        Bitmap bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(bmp);
+
+        Utilities.fillCanvas(canvas, mContext.getResources().getColor(R.color.background_color));
+
+        drawTimestampMarkers(canvas, width, height);
+
+        int graphHeight = (int)(0.4f* height);
+        int graphOffset = graphHeight;
+
+        drawGraph(canvas, "waterMeter", width, graphHeight, graphOffset);
+
+        int pingStatusHeight = 5;
+        int pingDelta = (height - graphHeight)/9;
+        int pingStatusOffset = graphOffset + pingDelta ;
+
+        drawGraph(canvas, "camerapi_ping", width, pingStatusHeight, pingStatusOffset);
+
+        pingStatusOffset += pingDelta;
+        drawGraph(canvas, "sdbtbbpi_ping", width, pingStatusHeight, pingStatusOffset);
+
+        pingStatusOffset += pingDelta;
+        drawGraph(canvas, "cuisinepi_ping", width, pingStatusHeight, pingStatusOffset);
+
+        pingStatusOffset += pingDelta;
+        drawGraph(canvas, "intercompi1_ping", width, pingStatusHeight, pingStatusOffset);
+
+        pingStatusOffset += pingDelta;
+        drawGraph(canvas, "intercompi2_ping", width, pingStatusHeight, pingStatusOffset);
+
+        pingStatusOffset += pingDelta;
+        drawGraph(canvas, "nas_ping", width, pingStatusHeight, pingStatusOffset);
+
+        pingStatusOffset += pingDelta;
+        drawGraph(canvas, "garagepi_ping", width, pingStatusHeight, pingStatusOffset);
+
+        pingStatusOffset += pingDelta;
+        drawGraph(canvas, "alarme_ping", width, pingStatusHeight, pingStatusOffset);
+
+        rv.setImageViewBitmap(R.id.GraphBody, bmp);
+
+        // graph has been redrawn: hide progress bar now.
+        rv.setViewVisibility(R.id.loadingProgress, View.GONE);
+        rv.setViewVisibility(R.id.reloadList, View.VISIBLE);
+
+        ComponentName me = new ComponentName(this, GraphViewerWidgetProvider.class);
+        AppWidgetManager mgr = AppWidgetManager.getInstance(this);
+        mgr.updateAppWidget(me, rv);
+
+        cleanUp();
+    }
+
+    private void drawTimestampMarkers(Canvas canvas, int width, int height) {
+
+        Path path = new Path();
+
+        Paint paint = new Paint();
+        paint.setAntiAlias(true);
+        paint.setARGB(127, 150, 150, 150);
+        paint.setStrokeWidth(1.0f);
+        paint.setPathEffect(new DashPathEffect(new float[]{2, 2}, 0));
+        paint.setStyle(Paint.Style.STROKE);
+
+        paint.setARGB(255, 100, 100, 100);
+        for (int i=0; i< GraphViewerWidgetProvider.NB_VERTICAL_MARKERS; i++) {
+            float x = (1.0f+i)* width/ (GraphViewerWidgetProvider.NB_VERTICAL_MARKERS+1);
+
+            // Draw vertical marker at regular intervals
+            path.moveTo(x, 0);
+            path.lineTo(x, height);
+            canvas.drawPath(path, paint);
+        }
     }
 
     public void parseCursor() {
@@ -161,7 +232,7 @@ class StackRemoteViewsFactory implements RemoteViewsService.RemoteViewsFactory {
 
                 boolean special = false;
                 if (date.after(minDate) && date.before(maxDate)) {
-                   special=true;
+                    special=true;
                 }
 
                 dataPoints.add(new DataPoint(datetime, value, special));
@@ -268,7 +339,7 @@ class StackRemoteViewsFactory implements RemoteViewsService.RemoteViewsFactory {
             GraphParameters gp = new GraphParameters();
             gp.scale = 1.2f * maxValue; // Scale the graph to allow 20% margin between the max value and the top of the graph.
             gp.type = getGraphTypeForDataId(key);
-            gp.height = getGraphHeightForDataId(key);
+            gp.height = (int)(GraphViewerWidgetProvider.mGraphHeight);
             gp.unit = getGraphUnitForDataId(key);
             mGraphParams.put(key,gp);
 
@@ -278,54 +349,6 @@ class StackRemoteViewsFactory implements RemoteViewsService.RemoteViewsFactory {
         }
 
         Log.i(GraphViewerWidgetProvider.TAG, "---------------DONE PARSING DATA---------------");
-    }
-
-    public RemoteViews getViewAt(int position) {
-
-        //Log.i(GraphViewerWidgetProvider.TAG, "getViewAt: " + Integer.toString(position));
-
-        final int itemId = R.layout.widget_item;
-        RemoteViews rv = new RemoteViews(mContext.getPackageName(), itemId);
-
-        // Render graph into a bitmap and set this bitmap into the target imageview.
-        rv.setImageViewBitmap(R.id.widget_item, generateGraph(position));
-
-        // Set the click intent so that we can handle it
-        // Do not set a click handler on dummy items that are there only to make the list look good when empty
-        // TODO : adapt to not put click intent on empty graph slots
-/*
-            final Intent fillInIntent = new Intent();
-            final Bundle extras = new Bundle();
-            extras.putString(GraphViewerWidgetProvider.EXTRA_ITEM_ID, datetime);
-            fillInIntent.putExtras(extras);
-            rv.setOnClickFillInIntent(R.id.widget_item, fillInIntent);
-*/
-        return rv;
-    }
-    private int getGraphHeightForDataId (String dataID) {
-
-        int height=0;
-        // TODO: make this configurable.
-        switch(dataID) {
-            case "camerapi_ping":
-            case "sdbtbbpi_ping":
-            case "cuisinepi_ping":
-            case "intercompi1_ping":
-            case "intercompi2_ping":
-            case "nas_ping":
-            case "garagepi_ping":
-            case "alarme_ping":
-                height = 16;
-                break;
-            case "waterMeter":
-                height = 150;
-                break;
-            default:
-                height = 100;
-                break;
-        }
-
-        return height;
     }
 
     private String getGraphUnitForDataId (String dataID) {
@@ -380,67 +403,8 @@ class StackRemoteViewsFactory implements RemoteViewsService.RemoteViewsFactory {
         return gt;
     }
 
-    private String getDataIdForPosition (int position) {
 
-        String dataId;
-        // TODO: make this configurable.
-        switch(position) {
-            case 0:
-                dataId = "waterMeter";
-                break;
-            case 2:
-                dataId = "camerapi_ping";
-                break;
-            case 4:
-                dataId = "sdbtbbpi_ping";
-                break;
-            case 6:
-                dataId = "cuisinepi_ping";
-                break;
-            case 8:
-                dataId = "intercompi1_ping";
-                break;
-            case 10:
-                dataId = "intercompi2_ping";
-                break;
-            case 12:
-                dataId = "nas_ping";
-                break;
-            case 14:
-                dataId = "garagepi_ping";
-                break;
-            case 16:
-                dataId = "alarme_ping";
-                break;
-
-            case 1:
-            case 3:
-            case 5:
-            case 7:
-            case 9:
-            case 11:
-            case 13:
-            case 15:
-            case 17:
-                dataId = DATA_ID_INTERGRAPH_BLANK;
-                break;
-            default:
-                dataId = DATA_ID_NONE;
-                break;
-        }
-
-        return dataId;
-    }
-
-    private Bitmap generateGraph(int position) {
-
-        int width =  (int)(GraphViewerWidgetProvider.mGraphWidth);
-
-        if (width==0)
-                width = GraphViewerWidgetProvider.DEFAULT_WIDTH;
-
-        // Figure out what data to plot in this graph
-        String dataId = getDataIdForPosition(position);
+    private void drawGraph(Canvas canvas, String dataId, int width, int height, int offset_y) {
 
         GraphParameters gp;
         float[] cumulatedValues;
@@ -460,22 +424,8 @@ class StackRemoteViewsFactory implements RemoteViewsService.RemoteViewsFactory {
             }
         }
 
-        // Retrieve params for this series
-        if (dataId.equals(DATA_ID_INTERGRAPH_BLANK)) {
-            gp = new GraphParameters();
-            gp.height = INTERGRAPH_BLANK_HEIGHT;
-        } else if (dataId.equals(DATA_ID_FINALFILLER)) {
-            gp = new GraphParameters();
-            gp.height = FINALFILLER_HEIGHT;
-        }
-
-        Bitmap bmp = Bitmap.createBitmap(width, gp.height, Bitmap.Config.ARGB_8888);
-        Canvas canvas = new Canvas(bmp);
-
-        Utilities.fillCanvas(canvas, mContext.getResources().getColor(R.color.background_color));
-
         // Generate graph points for this graphID, from data points corresponding to dataId defined above.
-        if (!dataId.equals(DATA_ID_NONE) & mDataPoints != null) {
+        if (mDataPoints != null) {
 
             ArrayList<DataPoint> dataPoints = mDataPoints.get(dataId);
             ArrayList<DataPoint> specialValues = mSpecialValues.get(dataId);
@@ -488,15 +438,14 @@ class StackRemoteViewsFactory implements RemoteViewsService.RemoteViewsFactory {
             if (dataPoints != null) {
 
                 // each bar corresponds to a sample range of 5 minutes
-                float bar_width = width * (300000) / timerange;
-
+                float bar_width = (float)width * (300000) / timerange;
 
                 for (DataPoint temp : dataPoints) {
 
                     // For each datapoint in the list, generate a graph point at X coordinate proportional to timestamp over selected graph view range,
                     // and Y coordinate corresponding to data value scaled to graph height
                     float x = width * (temp.timestamp - GraphViewerWidgetProvider.timestamp_start) / timerange;
-                    float y = gp.height * temp.value / gp.scale;
+                    float y = height * temp.value / gp.scale;
 
                     int colour;
                     if (temp.special) {
@@ -514,50 +463,40 @@ class StackRemoteViewsFactory implements RemoteViewsService.RemoteViewsFactory {
                         // For each datapoint in the list, generate a graph point at X coordinate proportional to timestamp over selected graph view range,
                         // and Y coordinate corresponding to data value scaled to graph height
                         float x = width * (temp.timestamp - GraphViewerWidgetProvider.timestamp_start) / timerange;
-                        float y = gp.height * temp.value / gp.scale;
+                        float y = height * temp.value / gp.scale;
 
                         specialgraphPoints.add(new GraphPoint(x, y, temp.value, mContext.getResources().getColor(R.color.bargraph_special_color)));
                     }
                 }
 
-
                 // draw the horizontal/base axis for this graph
-                drawGraphAxis(canvas, width, gp.height);
-
-                // Draw rotated text
-//        canvas.save();
-//        canvas.rotate(-angle, centerPoint.x, centerPoint.y);
-//        canvas.drawText(text, centerPoint.x-Math.abs(rect.exactCenterX()),
-//        Math.abs(centerPoint.y-rect.exactCenterY()), paint);
-//        canvas.restore();
+                drawGraphAxis(canvas, width, height, offset_y);
 
                 // draw the graph points themselves
                 switch (gp.type) {
                     case bargraph:
-                        drawBarGraph(graphPoints, cumulatedValues, gp.unit, bar_width, canvas, width, gp.height);
+                        drawBarGraph(graphPoints, cumulatedValues, gp.unit, bar_width, canvas, width, height, offset_y);
                         break;
                     case bargraph_and_special:
-                        drawBarGraph(graphPoints, cumulatedValues, gp.unit, bar_width, canvas, width, gp.height);
-                        drawSpecialValues(specialgraphPoints, canvas, width, gp.height);
+                        drawBarGraph(graphPoints, cumulatedValues, gp.unit, bar_width, canvas, width, height, offset_y);
+                        drawSpecialValues(specialgraphPoints, canvas, width, height, offset_y);
                         break;
                     case lineplot:
-                        drawLinePlot(graphPoints, canvas, width, gp.height);
+                        drawLinePlot(graphPoints, canvas, width, height);
                         break;
                     case binarystatus:
-                        drawBinaryGraph(graphPoints, canvas, width, gp.height);
+                        drawBinaryGraph(graphPoints, canvas, width, height, offset_y);
                         break;
                 }
 
                 // Draw some text on the graph
-                drawGraphTitle(canvas, dataId);
+                drawGraphTitle(canvas, dataId, offset_y);
 
             }
         }
-        drawTimestampMarkers(canvas, width, gp.height);
-        return bmp;
     }
 
-    private void drawGraphTitle(Canvas canvas, String dataId) {
+    private void drawGraphTitle(Canvas canvas, String dataId, int offset_y) {
         Paint paint = new Paint();
         paint.setAntiAlias(true);
         paint.setTextSize(10);
@@ -573,19 +512,19 @@ class StackRemoteViewsFactory implements RemoteViewsService.RemoteViewsFactory {
         boxpaint.setStyle(Paint.Style.FILL);
 
         // Draw text brackground, and then text itself
-        canvas.drawRect(0, 0, textWidth + 10, textHeight + 10, boxpaint);
-        canvas.drawText(msg, 5, 5 + 0.5f * textHeight, paint);
+        canvas.drawRect(0, offset_y - (0.5f*textHeight) - 2, textWidth + 10, offset_y + (0.5f* textHeight) + 2, boxpaint);
+        canvas.drawText(msg, 5, offset_y + 0.5f*textHeight, paint);
     }
 
-    private void drawGraphAxis(Canvas canvas, int width, int height) {
+    private void drawGraphAxis(Canvas canvas, int width, int height, int offset_y) {
         Path path = new Path();
-        path.moveTo(0, height);
-        path.lineTo(width, height);
+        path.moveTo(0, offset_y);
+        path.lineTo(width, offset_y);
         Paint paint = new Paint();
         paint.setAntiAlias(true);
         paint.setColor(mContext.getResources().getColor(R.color.axis_color));
         paint.setStyle(Paint.Style.STROKE);
-        paint.setStrokeWidth(3.0f);
+        paint.setStrokeWidth(1.0f);
         canvas.drawPath(path, paint);
     }
 
@@ -620,7 +559,7 @@ class StackRemoteViewsFactory implements RemoteViewsService.RemoteViewsFactory {
             canvas.drawPath(path, paint);
     }
 
-    private void drawBarGraph(List<GraphPoint> points, float[] cumulatedValues, String unit, float bar_width, Canvas canvas, int width, int height) {
+    private void drawBarGraph(List<GraphPoint> points, float[] cumulatedValues, String unit, float bar_width, Canvas canvas, int width, int height, int offset_y) {
 
         int barcolour = mContext.getResources().getColor(R.color.bargraph_stats_text_color);
 
@@ -634,7 +573,7 @@ class StackRemoteViewsFactory implements RemoteViewsService.RemoteViewsFactory {
 
             // Draw text background, and then text itself
             //canvas.drawRect(pt.x - 0.5f * bar_width, height, pt.x + 0.5f * bar_width, height - pt.y, barpaint);
-            canvas.drawRect(pt.x - bar_width, height, pt.x, height - pt.y, barpaint);
+            canvas.drawRect(pt.x - bar_width, offset_y, pt.x, offset_y - pt.y, barpaint);
         }
 
         // Then draw text statistics for each time sub-region
@@ -647,8 +586,6 @@ class StackRemoteViewsFactory implements RemoteViewsService.RemoteViewsFactory {
         textPaint.setAntiAlias(true);
         textPaint.setSubpixelText(true);
 
-        String latestDatePrinted = "";
-
         for (int i=0; i<GraphViewerWidgetProvider.NB_VERTICAL_MARKERS+1; i++) {
             float x = (0.5f+i)*width/(GraphViewerWidgetProvider.NB_VERTICAL_MARKERS+1);
 
@@ -658,11 +595,11 @@ class StackRemoteViewsFactory implements RemoteViewsService.RemoteViewsFactory {
             String text = Float.toString(cumulatedValues[i])+unit;
 
             textWidth = Utilities.getTextWidth(textPaint, text);
-            canvas.drawText(text, x - 0.5f*textWidth, (0.125f)*height - 0.5f*textHeight, textPaint);
+            canvas.drawText(text, x - 0.5f*textWidth, offset_y - height + textHeight+5, textPaint);
         }
     }
 
-    private void drawSpecialValues(List<GraphPoint> points, Canvas canvas, int width, int height) {
+    private void drawSpecialValues(List<GraphPoint> points, Canvas canvas, int width, int height, int offset_y) {
 
         for (GraphPoint pt : points) {
             TextPaint textPaint = new TextPaint();
@@ -676,11 +613,11 @@ class StackRemoteViewsFactory implements RemoteViewsService.RemoteViewsFactory {
             float textHeight = Utilities.getTextHeight(textPaint, "0");
             String timetext = Float.toString(pt.original_value)+"l";
             float textWidth = Utilities.getTextWidth(textPaint, timetext);
-            canvas.drawText(timetext, pt.x - 0.5f * textWidth, (0.25f) * height + 0.5f * textHeight, textPaint);
+            canvas.drawText(timetext, pt.x - 0.5f * textWidth, offset_y - height + textHeight+25, textPaint);
         }
     }
 
-    private void drawBinaryGraph(List<GraphPoint> points, Canvas canvas, int width, int height) {
+    private void drawBinaryGraph(List<GraphPoint> points, Canvas canvas, int width, int height, int offset_y) {
 
         Paint barpaint = new Paint();
         barpaint.setAntiAlias(true);
@@ -689,39 +626,20 @@ class StackRemoteViewsFactory implements RemoteViewsService.RemoteViewsFactory {
         int pointIndex = 0;
 
         for (GraphPoint pt : points) {
-            barpaint.setColor(pt.y > 0.0f ? Color.GREEN: Color.RED);
+            int color = pt.y > 0.0f ? Color.GREEN: Color.RED;
+            barpaint.setColor(color);
+
             if (pointIndex == 0) {
-                canvas.drawRect(0, height, pt.x, 0, barpaint);
-            } else if (pointIndex < points.size()-1) {
-                canvas.drawRect(pt.x, height, points.get(pointIndex+1).x, 0, barpaint);
+                // use this status by default for earlier times, and up to next status time
+                canvas.drawRect(0, offset_y + 0.5f*height, points.get(pointIndex+1).x, offset_y - 0.5f*height, barpaint);
+            } else if (pointIndex < points.size() - 1) {
+                canvas.drawRect(pt.x, offset_y+ 0.5f*height, points.get(pointIndex+1).x, offset_y- 0.5f*height, barpaint);
             } else {
-                canvas.drawRect(pt.x, height, width, 0, barpaint);
+                canvas.drawRect(pt.x, offset_y+ 0.5f*height, width, offset_y- 0.5f*height, barpaint);
             }
 
             pointIndex++;
         }
-    }
-
-    private void drawTimestampMarkers(Canvas canvas, int width, int height) {
-
-        Path path = new Path();
-
-        Paint paint = new Paint();
-        paint.setAntiAlias(true);
-        paint.setARGB(127, 100, 100, 100);
-        paint.setStrokeWidth(1.0f);
-        paint.setPathEffect(new DashPathEffect(new float[]{2, 2}, 0));
-        paint.setStyle(Paint.Style.STROKE);
-
-        paint.setARGB(255, 100, 100, 100);
-        for (int i=0; i< GraphViewerWidgetProvider.NB_VERTICAL_MARKERS; i++) {
-            float x = (1.0f+i)* width/ (GraphViewerWidgetProvider.NB_VERTICAL_MARKERS+1);
-
-            // Draw vertical marker at regular intervals
-            path.moveTo(x, 0);
-            path.lineTo(x, height);
-            canvas.drawPath(path, paint);
-       }
     }
 
     private static class DataPoint {
@@ -773,25 +691,9 @@ class StackRemoteViewsFactory implements RemoteViewsService.RemoteViewsFactory {
         }
     }
 
-    public RemoteViews getLoadingView() {
-        return null;
-    }
+    public void getFreshData() {
 
-    public int getViewTypeCount() {
-        return 1;
-    }
-
-    public long getItemId(int position) {
-        return position;
-    }
-
-    public boolean hasStableIds() {
-        return true;
-    }
-
-    public void onDataSetChanged() {
-
-        String dataId ="unknown dataset";
+        String dataId = "unknown dataset";
         String datetime = "Unknown timestamp";
         float value;
 
@@ -805,21 +707,10 @@ class StackRemoteViewsFactory implements RemoteViewsService.RemoteViewsFactory {
         String[] args = new String[1];
         args[0] = Integer.toString(GraphViewerWidgetProvider.mHistoryLengthInHours);
 
-        mDataCursor = mContext.getContentResolver().query(GraphViewerDataProvider.CONTENT_URI_DATAPOINTS, null, null,args, null);
-
+        mDataCursor = GraphViewerDataProvider.query(GraphViewerDataProvider.CONTENT_URI_DATAPOINTS, null, null,args, null);
         parseCursor();
-
-        // Notify RELOAD_ACTION_DONE event to WidgetProvider
-        final Intent doneIntent = new Intent(mContext, GraphViewerWidgetProvider.class);
-        doneIntent.setAction(GraphViewerWidgetProvider.RELOAD_ACTION_DONE);
-        final PendingIntent donePendingIntent = PendingIntent.getBroadcast(mContext, 0, doneIntent, PendingIntent.FLAG_UPDATE_CURRENT);
-
-        try {
-            Log.i(GraphViewerWidgetProvider.TAG, "onDataSetChanged: launching pending Intent for loading done");
-            donePendingIntent.send();
-        }
-        catch (CanceledException ce) {
-            Log.i(GraphViewerWidgetProvider.TAG, "onDataSetChanged: Exception: "+ce.toString());
-        }
     }
+
+
 }
+

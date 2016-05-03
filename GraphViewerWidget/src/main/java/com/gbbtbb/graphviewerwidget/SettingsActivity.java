@@ -14,7 +14,6 @@ import android.preference.PreferenceManager;
 
 import java.lang.reflect.Method;
 import java.util.List;
-import java.util.Locale;
 
 public class SettingsActivity extends PreferenceActivity
         implements SharedPreferences.OnSharedPreferenceChangeListener {
@@ -156,9 +155,6 @@ public class SettingsActivity extends PreferenceActivity
 
         @Override
         protected void refreshSummaries() {
-            EditTextIntegerPreference intpref = (EditTextIntegerPreference) findPreference(getPrefix()+"GraphWidth");
-            intpref.setSummary(String.format(Locale.ENGLISH, "%d px", intpref.getInteger()));
-
             ListPreference listpref = (ListPreference) findPreference(getPrefix()+"NumHours");
             listpref.setSummary(listpref.getEntry());
         }

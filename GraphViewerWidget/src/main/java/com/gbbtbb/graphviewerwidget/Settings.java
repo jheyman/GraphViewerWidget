@@ -18,7 +18,7 @@ public class Settings {
         // If custom preferences for this widget instance do not exists yet, get
         // default values, this will initialize all parameters such that they
         // display properly in the Preference fragments
-        if (!mPreferences.contains(prefix + "GraphWidth")) {
+        if (!mPreferences.contains(prefix + "NumHours")) {
             GraphSettings gs = GraphSettings.get(mPreferences, PREF_PREFIX);
             gs.save(mPreferences, prefix);
         }
@@ -35,20 +35,13 @@ public class Settings {
 
     public static class GraphSettings {
         private String mPrefix;
-        private int mGraphWidth;
-        private int mGraphHeight;
         private int mNumHours;
 
-
-        public int getGraphWidth() { return mGraphWidth; }
-        public int getGraphHeight() { return mGraphHeight; }
         public int getHistoryLength() { return mNumHours; }
 
         public static GraphSettings get(SharedPreferences pref, String prefix) {
             GraphSettings gs = new GraphSettings();
             gs.mPrefix = prefix;
-            gs.mGraphWidth = pref.getInt(prefix + "GraphWidth", 600);
-            gs.mGraphHeight = pref.getInt(prefix + "GraphHeight", 100);
             gs.mNumHours = Integer.parseInt(pref.getString(prefix + "NumHours", Integer.toString(24)));
             return gs;
         }
@@ -59,8 +52,6 @@ public class Settings {
 
         public void save(SharedPreferences pref, String prefix) {
             pref.edit()
-                    .putInt(prefix+"GraphWidth", mGraphWidth)
-                    .putInt(prefix+"GraphHeight", mGraphHeight)
                     .putString(prefix + "NumHours", Integer.toString(mNumHours))
                     .apply();
         }
